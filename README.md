@@ -6,7 +6,7 @@
 <ul>
 <li><a href="#sec-1-1">1.1. Clojure namespace</a></li>
 <li><a href="#sec-1-2">1.2. random stuff</a></li>
-<li><a href="#sec-1-3">1.3. 16bit RGBA values</a></li>
+<li><a href="#sec-1-3">1.3. 32bit RGBA values</a></li>
 <li><a href="#sec-1-4">1.4. Return a color channel as a matrix</a></li>
 <li><a href="#sec-1-5">1.5. Test code</a>
 <ul>
@@ -46,7 +46,7 @@
     (import 'javax.imageio.ImageIO)
     (import 'java.awt.image.BufferedImage)
 
-## 16bit RGBA values<a id="sec-1-3" name="sec-1-3"></a>
+## 32bit RGBA values<a id="sec-1-3" name="sec-1-3"></a>
 
 given a 32bit value, extract the RGBA values from it
 
@@ -109,9 +109,11 @@ to get: "11101010001000" which is the above number with the 16 right most bits r
 ### Links to helpful places<a id="sec-1-5-1" name="sec-1-5-1"></a>
 
 -   [Java BufferedImage class docs](http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html)
--   [Getting RGB value of bufferedImage](http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage)
+-   [Getting RGB value of buffeeredImage](http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage)
 -   [Why amap is running slow](http://stackoverflow.com/questions/19202082/clojure-amap-is-very-slow)
 -   [Core.matrix presentation](http://www.slideshare.net/mikeranderson/2013-1114-enter-thematrix)
+
+The main test program
 
     (defn -main
     [& args]
