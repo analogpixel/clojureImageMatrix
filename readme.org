@@ -31,7 +31,7 @@
 #+end_src
 
 
-** 16bit RGBA values
+** 32bit RGBA values
 given a 32bit value, extract the RGBA values from it
 
 [AAAAAAAARRRRRRRRGGGGGGGGBBBBBBBB]
@@ -97,12 +97,11 @@ to get: "11101010001000" which is the above number with the 16 right most bits r
 ** Test code
 *** Links to helpful places
 	-	[[http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html][Java BufferedImage class docs]]
-	-	[[http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage][Getting RGB value of bufferedImage]]
+	-	[[http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage][Getting RGB value of buffeeredImage]]
 	-	[[http://stackoverflow.com/questions/19202082/clojure-amap-is-very-slow][Why amap is running slow]]
 	-	[[http://www.slideshare.net/mikeranderson/2013-1114-enter-thematrix][Core.matrix presentation]]
 
-
-#+begin_src clojure :tangle src/image/core.clj
+#+begin_src lisp :tangle src/image/core.clj
 (defn -main
 [& args]
 
