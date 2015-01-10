@@ -9,16 +9,65 @@
 (import 'javax.imageio.ImageIO)
 (import 'java.awt.image.BufferedImage)
 
-(defn getrgb [rgba]
-  (let [r (bit-and (bit-shift-right (rgba 1) 16) 0xFF)
-        g (bit-and (bit-shift-right (rgba 1) 8) 0xFF)
-        b (bit-and (bit-shift-right (rgba 1) 0) 0xFF)
-        a (bit-and (bit-shift-right (rgba 1) 24) 0xFF)
+(defn unpackrgba [rgba]
+  (let [r (bit-and (bit-shift-right rgba 16) 0xFF)
+        g (bit-and (bit-shift-right rgba 8) 0xFF)
+        b (bit-and (bit-shift-right rgba 0) 0xFF)
+        a (bit-and (bit-shift-right rgba 24) 0xFF)
         ]
 
   [r g b a]
   )
 )
+
+(defn packrgba [r g b a]
+  (bit-or
+  (bit-shift-left r 16)
+  (bit-shift-left g 8)
+  (bit-shift-left b 0)
+  (bit-shift-left a 24)
+  )
+  )
+
+(defn reduceColor [rgba n]
+  (let    [c (unpackrgba rgba)
+           rr (* (int (/ (c 0) n)) n)
+           rg (* (int (/ (c 1) n)) n)
+           rb (* (int (/ (c 2) n)) n)
+          ]
+    (packrgba rr rg rb (c 3))
+    )
+  )
+
+(defn loadImageMatrix [filename]
+  (def img  (ImageIO/read (FileInputStream. (File. filename))))
+  (def w (.getWidth img))
+  (def h (.getHeight img))
+
+  ;; convert the buffered image into an int array
+  (def imgIntArray (.getRGB img 0 0 w h nil 0, w ))
+
+  ;; create a core.matrix with all RGBA
+  (mx/reshape imgIntArray [w h])
+  )
+
+(defn saveImageMatrix [imgMatrix type filename]
+  ;; convert it back to an int Array
+  (def newImage  (mx/eseq imgMatrix))
+
+  ;; make it an int array
+  (def newImgIntArray (int-array (doall newImage)))
+
+  ;; create a buffered image
+  (def bufImg  (BufferedImage. w h BufferedImage/TYPE_INT_ARGB))
+
+  ;; write the pixel data to it
+  (.setRGB bufImg 0 0 w h newImgIntArray 0 w)
+
+  ;; save it to disk
+  (ImageIO/write bufImg type (File. filename))
+
+  )
 
 ;; 16 red
 ;; 8 green
@@ -31,42 +80,11 @@
 (defn -main
 [& args]
 
-;; http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html
-;; http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage
-;; http://stackoverflow.com/questions/19202082/clojure-amap-is-very-slow
-;; http://www.slideshare.net/mikeranderson/2013-1114-enter-thematrix
+(loadImageMatrix "c:/data/circ.png")
 
-;; load an image a java bufferedImage
-(def img  (ImageIO/read (FileInputStream. (File. "c:/data/circ.png"))))
-(def w (.getWidth img))
-(def h (.getHeight img))
+(saveImageMatrix
+ (mx/emap #(reduceColor % 5) (loadImageMatrix "c:/data/circ.png") )
+ "jpg"
+ "c:/data/test2.jpg")
 
-;; convert the buffered image into an int array
-(def imgIntArray (.getRGB img 0 0 w h nil 0, w ))
-;; convert it to a core.matrix
-(def imgMatrix (colorMatrix imgIntArray 8 w h ))
-;; convert it back to an int Array
-(def newImage  (mx/eseq imgMatrix))
-
-;; It is returned as a lazy seq
-(type newImage)
-
-;; make it an int array
-(def newImgIntArray (int-array (doall newImage)))
-
-;; create a buffered image
-(def bufImg  (BufferedImage. w h BufferedImage/TYPE_INT_RGB))
-
-;; write the pixel data to it
-(.setRGB bufImg 0 0 w h newImgIntArray 0 w)
-
-;; save it to disk
-(ImageIO/write bufImg "png" (File. "c:/data/newcirc.png"))
-
-;; (def b (into [] a))
-
-
-(def newImage ( mx/coerce  :double-array ((mx/reshape (colorMatrix a 16 (.getWidth img) (.getHeight img)) [1 (* (.getHeight img) (.getWidth img) )]) 0)))
-
-(.setRGB img 0 0 (int-array newImage 0))
 )

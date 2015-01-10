@@ -52,7 +52,7 @@ to get the Blue value B from a 32bit binary value, you would shift off nothing, 
 then do a binary and of 00000000000000000000000011111111 to get just the blue value
 
 #+begin_src clojure :tangle src/image/core.clj
-(defn getrgb [rgba]
+(defn unpackrgba [rgba]
   (let [r (bit-and (bit-shift-right rgba 16) 0xFF)
         g (bit-and (bit-shift-right rgba 8) 0xFF)
         b (bit-and (bit-shift-right rgba 0) 0xFF)
@@ -76,6 +76,68 @@ and get: "111010100010001100111111011100".  Now if you wanted to shift some valu
 #+end_src
 to get: "11101010001000" which is the above number with the 16 right most bits removed.
 
+To get RGBA values back into a single 32bit number
+#+begin_src clojure :tangle src/image/core.clj
+(defn packrgba [r g b a]
+  (bit-or
+  (bit-shift-left r 16)
+  (bit-shift-left g 8)
+  (bit-shift-left b 0)
+  (bit-shift-left a 24)
+  )
+  )
+#+end_src
+
+
+** Reducing the intensity levels of your image
+#+begin_src clojure :tangle src/image/core.clj
+(defn reduceColor [rgba n]
+  (let    [c (unpackrgba rgba)
+           rr (* (int (/ (c 0) n)) n)
+           rg (* (int (/ (c 1) n)) n)
+           rb (* (int (/ (c 2) n)) n)
+          ]
+    (packrgba rr rg rb (c 3))
+    )
+  )
+#+end_src
+
+** Loading an image into a matrix
+#+begin_src clojure :tangle src/image/core.clj
+(defn loadImageMatrix [filename]
+  (def img  (ImageIO/read (FileInputStream. (File. filename))))
+  (def w (.getWidth img))
+  (def h (.getHeight img))
+
+  ;; convert the buffered image into an int array
+  (def imgIntArray (.getRGB img 0 0 w h nil 0, w ))
+
+  ;; create a core.matrix with all RGBA
+  (mx/reshape imgIntArray [w h])
+  )
+#+end_src
+
+** Saving a matrix into an image
+#+begin_src clojure :tangle src/image/core.clj
+(defn saveImageMatrix [imgMatrix type filename]
+  ;; convert it back to an int Array
+  (def newImage  (mx/eseq imgMatrix))
+
+  ;; make it an int array
+  (def newImgIntArray (int-array (doall newImage)))
+
+  ;; create a buffered image
+  (def bufImg  (BufferedImage. w h BufferedImage/TYPE_INT_ARGB))
+
+  ;; write the pixel data to it
+  (.setRGB bufImg 0 0 w h newImgIntArray 0 w)
+
+  ;; save it to disk
+  (ImageIO/write bufImg type (File. filename))
+
+  )
+#+end_src
+
 ** Return a color channel as a matrix
 #+begin_src clojure :tangle src/image/core.clj
 ;; 16 red
@@ -87,11 +149,6 @@ to get: "11101010001000" which is the above number with the 16 right most bits r
 )
 #+end_src
 
-#+begin_src clojure :tangle src/image/core.clj
-(defn imageMatrix [img w h]
-   (mx/reshape img [h w])
-)
-#+end_src
 
 
 ** Test code
@@ -107,43 +164,11 @@ to get: "11101010001000" which is the above number with the 16 right most bits r
 (defn -main
 [& args]
 
-;; load an image a java bufferedImage
-(def img  (ImageIO/read (FileInputStream. (File. "c:/data/circ.png"))))
-(def w (.getWidth img))
-(def h (.getHeight img))
 
-;; convert the buffered image into an int array
-(def imgIntArray (.getRGB img 0 0 w h nil 0, w ))
+(saveImageMatrix
+ (mx/emap #(reduceColor % 5) (loadImageMatrix "c:/data/circ.png") )
+ "jpg"
+ "c:/data/test2.jpg")
 
-;; create a core.matrix with just the blue channel
-(def imgMatrix (colorMatrix imgIntArray 8 w h ))
-
-;; create a core.matrix with all RGBA
-(def imgMatrix (imageMatrix imgIntArray w h))
-
-;; convert it back to an int Array
-(def newImage  (mx/eseq imgMatrix))
-
-;; It is returned as a lazy seq
-(type newImage)
-
-;; make it an int array
-(def newImgIntArray (int-array (doall newImage)))
-
-;; create a buffered image
-(def bufImg  (BufferedImage. w h BufferedImage/TYPE_INT_ARGB))
-
-;; write the pixel data to it
-(.setRGB bufImg 0 0 w h newImgIntArray 0 w)
-
-;; save it to disk
-(ImageIO/write bufImg "png" (File. "c:/data/newcirc.png"))
-
-;; (def b (into [] a))
-
-
-(def newImage ( mx/coerce  :double-array ((mx/reshape (colorMatrix a 16 (.getWidth img) (.getHeight img)) [1 (* (.getHeight img) (.getWidth img) )]) 0)))
-
-(.setRGB img 0 0 (int-array newImage 0))
 )
 #+end_src
