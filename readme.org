@@ -32,16 +32,31 @@
 
 
 ** 16bit RGBA values
-given a 16bit value, extract the RGBA values from it
+given a 32bit value, extract the RGBA values from it
 
-[0000000000000000]
+[AAAAAAAARRRRRRRRGGGGGGGGBBBBBBBB]
+
+To get the Alpha value A from a 32bit binary value, you would shift off the RGB values, so
+move everything to the right 24 times so those values slide off and you are just left with
+AAAAAAAA
+
+to get the Red value R from a 32bit binary value, you would shift off the GB values, so
+move everyhing to the right 16 times to remove all the G and B bits, and you are left with
+AAAAAAAARRRRRRRR.  You then  do a binary and of 0000000011111111 and have that remove the
+first 8 bits if they exist.
+
+To get the Green value G from a 32bit binary value, you would shift off the B values,
+and then do a binary and of 000000000000000011111111 to remove the A and R values.
+
+to get the Blue value B from a 32bit binary value, you would shift off nothing, and
+then do a binary and of 00000000000000000000000011111111 to get just the blue value
 
 #+begin_src clojure :tangle src/image/core.clj
 (defn getrgb [rgba]
-  (let [r (bit-and (bit-shift-right (rgba 1) 16) 0xFF)
-        g (bit-and (bit-shift-right (rgba 1) 8) 0xFF)
-        b (bit-and (bit-shift-right (rgba 1) 0) 0xFF)
-        a (bit-and (bit-shift-right (rgba 1) 24) 0xFF)
+  (let [r (bit-and (bit-shift-right rgba 16) 0xFF)
+        g (bit-and (bit-shift-right rgba 8) 0xFF)
+        b (bit-and (bit-shift-right rgba 0) 0xFF)
+        a (bit-and (bit-shift-right rgba 24) 0xFF)
         ]
 
   [r g b a]
@@ -49,6 +64,17 @@ given a 16bit value, extract the RGBA values from it
 )
 #+end_src
 
+To explore binary conversion in clojure, you can call the (Integer/toString <number> <base>) function
+to print out number in base.  So if you have the integer 982044636 and you wanted to see what
+the binary value looked like you could run:
+#+begin_src clojure
+(Integer/toString 982044636 2)
+#+end_src
+and get: "111010100010001100111111011100".  Now if you wanted to shift some values you would run:
+#+begin_src clojure
+(Integer/toString (bit-shift-right 982044636 16) 2)
+#+end_src
+to get: "11101010001000" which is the above number with the 16 right most bits removed.
 
 ** Return a color channel as a matrix
 #+begin_src clojure :tangle src/image/core.clj
@@ -70,10 +96,10 @@ given a 16bit value, extract the RGBA values from it
 
 ** Test code
 *** Links to helpful places
-		[[http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html][Java BufferedImage class docs]]
-		[[http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage][Getting RGB value of bufferedImage]]
-		[[http://stackoverflow.com/questions/19202082/clojure-amap-is-very-slow][Why amap is running slow]]
-		[[http://www.slideshare.net/mikeranderson/2013-1114-enter-thematrix][Core.matrix presentation]]
+	-	[[http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html][Java BufferedImage class docs]]
+	-	[[http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage][Getting RGB value of bufferedImage]]
+	-	[[http://stackoverflow.com/questions/19202082/clojure-amap-is-very-slow][Why amap is running slow]]
+	-	[[http://www.slideshare.net/mikeranderson/2013-1114-enter-thematrix][Core.matrix presentation]]
 
 
 #+begin_src clojure :tangle src/image/core.clj

@@ -48,7 +48,47 @@
 
 ## 16bit RGBA values<a id="sec-1-3" name="sec-1-3"></a>
 
-given a 16bit value, extract the RGBA values from it
+given a 32bit value, extract the RGBA values from it
+
+[AAAAAAAARRRRRRRRGGGGGGGGBBBBBBBB]
+
+To get the Alpha value A from a 32bit binary value, you would shift off the RGB values, so
+move everything to the right 24 times so those values slide off and you are just left with
+AAAAAAAA
+
+to get the Red value R from a 32bit binary value, you would shift off the GB values, so
+move everyhing to the right 16 times to remove all the G and B bits, and you are left with
+AAAAAAAARRRRRRRR.  You then  do a binary and of 0000000011111111 and have that remove the
+first 8 bits if they exist.
+
+To get the Green value G from a 32bit binary value, you would shift off the B values,
+and then do a binary and of 000000000000000011111111 to remove the A and R values.
+
+to get the Blue value B from a 32bit binary value, you would shift off nothing, and
+then do a binary and of 00000000000000000000000011111111 to get just the blue value
+
+    (defn getrgb [rgba]
+      (let [r (bit-and (bit-shift-right rgba 16) 0xFF)
+            g (bit-and (bit-shift-right rgba 8) 0xFF)
+            b (bit-and (bit-shift-right rgba 0) 0xFF)
+            a (bit-and (bit-shift-right rgba 24) 0xFF)
+            ]
+
+      [r g b a]
+      )
+    )
+
+To explore binary conversion in clojure, you can call the (Integer/toString <number> <base>) function
+to print out number in base.  So if you have the integer 982044636 and you wanted to see what
+the binary value looked like you could run:
+
+    (Integer/toString 982044636 2)
+
+and get: "111010100010001100111111011100".  Now if you wanted to shift some values you would run:
+
+    (Integer/toString (bit-shift-right 982044636 16) 2)
+
+to get: "11101010001000" which is the above number with the 16 right most bits removed.
 
 ## Return a color channel as a matrix<a id="sec-1-4" name="sec-1-4"></a>
 
@@ -68,10 +108,10 @@ given a 16bit value, extract the RGBA values from it
 
 ### Links to helpful places<a id="sec-1-5-1" name="sec-1-5-1"></a>
 
-[Java BufferedImage class docs](http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html)
-[Getting RGB value of bufferedImage](http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage)
-[Why amap is running slow](http://stackoverflow.com/questions/19202082/clojure-amap-is-very-slow)
-[Core.matrix presentation](http://www.slideshare.net/mikeranderson/2013-1114-enter-thematrix)
+-   [Java BufferedImage class docs](http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html)
+-   [Getting RGB value of bufferedImage](http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage)
+-   [Why amap is running slow](http://stackoverflow.com/questions/19202082/clojure-amap-is-very-slow)
+-   [Core.matrix presentation](http://www.slideshare.net/mikeranderson/2013-1114-enter-thematrix)
 
     (defn -main
     [& args]
