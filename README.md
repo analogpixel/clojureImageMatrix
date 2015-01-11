@@ -12,14 +12,13 @@
 <li><a href="#sec-1-2-3">1.2.3. import</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-3">1.3. random stuff</a></li>
-<li><a href="#sec-1-4">1.4. 32bit RGBA values</a></li>
-<li><a href="#sec-1-5">1.5. Reducing the intensity levels of your image</a></li>
-<li><a href="#sec-1-6">1.6. Loading an image into a matrix</a></li>
-<li><a href="#sec-1-7">1.7. Saving a matrix into an image</a></li>
-<li><a href="#sec-1-8">1.8. Test code</a>
+<li><a href="#sec-1-3">1.3. Loading an image into a matrix</a></li>
+<li><a href="#sec-1-4">1.4. Saving a matrix into an image</a></li>
+<li><a href="#sec-1-5">1.5. 32bit RGBA values</a></li>
+<li><a href="#sec-1-6">1.6. Reducing the intensity levels of your image</a></li>
+<li><a href="#sec-1-7">1.7. Test code</a>
 <ul>
-<li><a href="#sec-1-8-1">1.8.1. Links to helpful places</a></li>
+<li><a href="#sec-1-7-1">1.7.1. Links to helpful places</a></li>
 </ul>
 </li>
 </ul>
@@ -37,7 +36,7 @@ for clojure.  Once you have it installed, you run:
 
     lein new image
 
-to create a new project called image. Once the image is created open the project.clj
+to create a new project called image. Once the project is created open the project.clj
 file add add a :main section to point to your main function (defn -main in your source)
 and then add the core.matrix and clatrix dependencies.  Now from the command line you can
 run lein deps from the image directory, and lein will go out and download all the libraries
@@ -67,7 +66,7 @@ three main sections (besides the name)
 
 ### require<a id="sec-1-2-1" name="sec-1-2-1"></a>
 
-load a library from your class path and imports it, with the :as flag it will
+load a clojure library from your class path and imports it, with the :as flag it will
 alias it so yo don't need to type out the entire lib name each time you want
 to use something from it.
 
@@ -90,14 +89,49 @@ like you'd want.
       (:import (java.io File FileInputStream) javax.imageio.ImageIO java.awt.image.BufferedImage)
     )
 
-## random stuff<a id="sec-1-3" name="sec-1-3"></a>
+## Loading an image into a matrix<a id="sec-1-3" name="sec-1-3"></a>
 
-    (import 'java.io.File)
-    (import 'java.io.FileInputStream)
-    (import 'javax.imageio.ImageIO)
-    (import 'java.awt.image.BufferedImage)
+Images are loaded via the java BufferedImage class.  Once the image is loaded
+it is converted into Matrix format and returned.  The makeMatrix format just takes
+a long array [2 2 2 2 2 2 2 2 2 2] and converts it into [ [2 2] [2 2] [2 2]&#x2026;.]
 
-## 32bit RGBA values<a id="sec-1-4" name="sec-1-4"></a>
+    (defn makeMatrix [min mout w]
+      (if (<= (count min) 0)
+        mout
+        (makeMatrix (drop w min) (conj mout (into [] (take w min))) w)
+        )
+      )
+
+    (defn loadImageMatrix [filename]
+      (set! *warn-on-reflection* true)
+      (def img  (ImageIO/read (FileInputStream. (File. filename))))
+      (def w  (.getWidth img))
+      (def h (.getHeight img))
+
+      (cl/matrix (makeMatrix (.getRGB ^BufferedImage img 0 0 w h nil 0, w ) [] w))
+      )
+
+## Saving a matrix into an image<a id="sec-1-4" name="sec-1-4"></a>
+
+This function saves a matrix back into an image
+
+    (defn saveImageMatrix [imgMatrix imtype filename]
+      (let [
+            h (row-count imgMatrix)
+            w (column-count imgMatrix)
+            bufImg (BufferedImage. w h BufferedImage/TYPE_INT_ARGB)
+            ]
+
+        (dotimes [y h]
+          (dotimes [x w]
+            (.setRGB bufImg x y (cl/get imgMatrix y x))
+            )
+          )
+        (ImageIO/write ^BufferedImage bufImg imtype  (File. filename))
+        )
+      )
+
+## 32bit RGBA values<a id="sec-1-5" name="sec-1-5"></a>
 
 given a 32bit value, extract the RGBA values from it
 
@@ -152,7 +186,7 @@ To get RGBA values back into a single 32bit number
       )
       )
 
-## Reducing the intensity levels of your image<a id="sec-1-5" name="sec-1-5"></a>
+## Reducing the intensity levels of your image<a id="sec-1-6" name="sec-1-6"></a>
 
     (defn reduceColor [^long rgba n]
       (let    [c (unpackrgba rgba)
@@ -164,45 +198,9 @@ To get RGBA values back into a single 32bit number
         )
       )
 
-## Loading an image into a matrix<a id="sec-1-6" name="sec-1-6"></a>
+## Test code<a id="sec-1-7" name="sec-1-7"></a>
 
-    (defn makeMatrix [min mout w]
-      (if (<= (count min) 0)
-        mout
-        (makeMatrix (drop w min) (conj mout (into [] (take w min))) w)
-        )
-      )
-
-    (defn loadImageMatrix [filename]
-      (set! *warn-on-reflection* true)
-      (def img  (ImageIO/read (FileInputStream. (File. filename))))
-      (def w  (.getWidth img))
-      (def h (.getHeight img))
-
-      (cl/matrix (makeMatrix (.getRGB ^BufferedImage img 0 0 w h nil 0, w ) [] w))
-      )
-
-## Saving a matrix into an image<a id="sec-1-7" name="sec-1-7"></a>
-
-    (defn saveImageMatrix [imgMatrix imtype filename]
-      (let [
-            h (row-count imgMatrix)
-            w (column-count imgMatrix)
-            bufImg (BufferedImage. w h BufferedImage/TYPE_INT_ARGB)
-            ]
-
-        (dotimes [y h]
-          (dotimes [x w]
-            (.setRGB bufImg x y (cl/get imgMatrix y x))
-            )
-          )
-        (ImageIO/write ^BufferedImage bufImg imtype  (File. filename))
-        )
-      )
-
-## Test code<a id="sec-1-8" name="sec-1-8"></a>
-
-### Links to helpful places<a id="sec-1-8-1" name="sec-1-8-1"></a>
+### Links to helpful places<a id="sec-1-7-1" name="sec-1-7-1"></a>
 
 -   [Java BufferedImage class docs](http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html)
 -   [Getting RGB value of buffeeredImage](http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage)
