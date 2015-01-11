@@ -4,13 +4,22 @@
 <ul>
 <li><a href="#sec-1">1. Image Manipulation with clojure</a>
 <ul>
-<li><a href="#sec-1-1">1.1. Clojure namespace</a></li>
-<li><a href="#sec-1-2">1.2. random stuff</a></li>
-<li><a href="#sec-1-3">1.3. 32bit RGBA values</a></li>
-<li><a href="#sec-1-4">1.4. Return a color channel as a matrix</a></li>
-<li><a href="#sec-1-5">1.5. Test code</a>
+<li><a href="#sec-1-1">1.1. Configure the project</a></li>
+<li><a href="#sec-1-2">1.2. Clojure namespace</a>
 <ul>
-<li><a href="#sec-1-5-1">1.5.1. Links to helpful places</a></li>
+<li><a href="#sec-1-2-1">1.2.1. require</a></li>
+<li><a href="#sec-1-2-2">1.2.2. use</a></li>
+<li><a href="#sec-1-2-3">1.2.3. import</a></li>
+</ul>
+</li>
+<li><a href="#sec-1-3">1.3. random stuff</a></li>
+<li><a href="#sec-1-4">1.4. 32bit RGBA values</a></li>
+<li><a href="#sec-1-5">1.5. Reducing the intensity levels of your image</a></li>
+<li><a href="#sec-1-6">1.6. Loading an image into a matrix</a></li>
+<li><a href="#sec-1-7">1.7. Saving a matrix into an image</a></li>
+<li><a href="#sec-1-8">1.8. Test code</a>
+<ul>
+<li><a href="#sec-1-8-1">1.8.1. Links to helpful places</a></li>
 </ul>
 </li>
 </ul>
@@ -21,6 +30,19 @@
 
 # Image Manipulation with clojure<a id="sec-1" name="sec-1"></a>
 
+## Configure the project<a id="sec-1-1" name="sec-1-1"></a>
+
+Before you begin, you'll need to get [Leiningen](http://leiningen.org/) which is a project manager
+for clojure.  Once you have it installed, you run:
+
+    lein new image
+
+to create a new project called image. Once the image is created open the project.clj
+file add add a :main section to point to your main function (defn -main in your source)
+and then add the core.matrix and clatrix dependencies.  Now from the command line you can
+run lein deps from the image directory, and lein will go out and download all the libraries
+you requested, and all their dependencies.
+
     (defproject image "0.1.0-SNAPSHOT"
       :description "FIXME: write description"
       :url "http://example.com/FIXME"
@@ -29,24 +51,53 @@
       :main image.core
       :dependencies [[org.clojure/clojure "1.6.0"]
                      [net.mikera/core.matrix "0.32.1"]
-                     [net.mikera/vectorz-clj "0.28.0"]
+                     [clatrix "0.4.0"]
                      ])
 
-## Clojure namespace<a id="sec-1-1" name="sec-1-1"></a>
+ If you are using emacs, and have [CIDER](https://github.com/clojure-emacs/cider) installed (`M-x package-install` cider)
+you can now open image/project.clj from emacs and then type:
+`M-x cider-jack-in` to connect to that project and edit it live in the REPL.
+Now that you have a REPL running in emacs connected to your project, you can open
+src/image/core.clj and start editing the program.
+
+## Clojure namespace<a id="sec-1-2" name="sec-1-2"></a>
+
+The begining of the program is the name space declaration.  The name space has
+three main sections (besides the name)
+
+### require<a id="sec-1-2-1" name="sec-1-2-1"></a>
+
+load a library from your class path and imports it, with the :as flag it will
+alias it so yo don't need to type out the entire lib name each time you want
+to use something from it.
+
+### use<a id="sec-1-2-2" name="sec-1-2-2"></a>
+
+loads an existing namespace and refers all the symbols from it into this namespace. So
+by using clojure.core.matrix you have all the function available in your namespace.
+
+### import<a id="sec-1-2-3" name="sec-1-2-3"></a>
+
+Import is used to import java libraries into the clojure namespace. If you want to
+load java.io.File and java.io.FileInputStream, you can use the notation:
+(java.io File FileInputStream)  but if you just want to load javax.imageio.ImageIO,
+placing () around it will actually break it and won't load it into the namespace
+like you'd want.
 
     (ns image.core
-      (require [clojure.core.matrix :as mx] [clojure.core.matrix.operators :as mxop])
+      (:use clojure.core.matrix)
+      (:require [clatrix.core :as cl])
+      (:import (java.io File FileInputStream) javax.imageio.ImageIO java.awt.image.BufferedImage)
     )
 
-## random stuff<a id="sec-1-2" name="sec-1-2"></a>
+## random stuff<a id="sec-1-3" name="sec-1-3"></a>
 
-    (mx/set-current-implementation :vectorz)
     (import 'java.io.File)
     (import 'java.io.FileInputStream)
     (import 'javax.imageio.ImageIO)
     (import 'java.awt.image.BufferedImage)
 
-## 32bit RGBA values<a id="sec-1-3" name="sec-1-3"></a>
+## 32bit RGBA values<a id="sec-1-4" name="sec-1-4"></a>
 
 given a 32bit value, extract the RGBA values from it
 
@@ -67,7 +118,7 @@ and then do a binary and of 000000000000000011111111 to remove the A and R value
 to get the Blue value B from a 32bit binary value, you would shift off nothing, and
 then do a binary and of 00000000000000000000000011111111 to get just the blue value
 
-    (defn getrgb [rgba]
+    (defn unpackrgba [rgba]
       (let [r (bit-and (bit-shift-right rgba 16) 0xFF)
             g (bit-and (bit-shift-right rgba 8) 0xFF)
             b (bit-and (bit-shift-right rgba 0) 0xFF)
@@ -90,23 +141,68 @@ and get: "111010100010001100111111011100".  Now if you wanted to shift some valu
 
 to get: "11101010001000" which is the above number with the 16 right most bits removed.
 
-## Return a color channel as a matrix<a id="sec-1-4" name="sec-1-4"></a>
+To get RGBA values back into a single 32bit number
 
-    ;; 16 red
-    ;; 8 green
-    ;; 0 blue
-    ;; return a matrix of the color value
-    (defn colorMatrix [img bits w h]
-      (mx/reshape (int-array  (map #(bit-and (bit-shift-right % bits) 0xFF) img)) [h w])
-    )
+    (defn packrgba [r g b a]
+      (bit-or
+      (bit-shift-left r 16)
+      (bit-shift-left g 8)
+      (bit-shift-left b 0)
+      (bit-shift-left a 24)
+      )
+      )
 
-    (defn imageMatrix [img w h]
-       (mx/reshape img [h w])
-    )
+## Reducing the intensity levels of your image<a id="sec-1-5" name="sec-1-5"></a>
 
-## Test code<a id="sec-1-5" name="sec-1-5"></a>
+    (defn reduceColor [^long rgba n]
+      (let    [c (unpackrgba rgba)
+               rr (* (int (/ (c 0) n)) n)
+               rg (* (int (/ (c 1) n)) n)
+               rb (* (int (/ (c 2) n)) n)
+              ]
+        (packrgba rr rg rb (c 3))
+        )
+      )
 
-### Links to helpful places<a id="sec-1-5-1" name="sec-1-5-1"></a>
+## Loading an image into a matrix<a id="sec-1-6" name="sec-1-6"></a>
+
+    (defn makeMatrix [min mout w]
+      (if (<= (count min) 0)
+        mout
+        (makeMatrix (drop w min) (conj mout (into [] (take w min))) w)
+        )
+      )
+
+    (defn loadImageMatrix [filename]
+      (set! *warn-on-reflection* true)
+      (def img  (ImageIO/read (FileInputStream. (File. filename))))
+      (def w  (.getWidth img))
+      (def h (.getHeight img))
+
+      (cl/matrix (makeMatrix (.getRGB ^BufferedImage img 0 0 w h nil 0, w ) [] w))
+      )
+
+## Saving a matrix into an image<a id="sec-1-7" name="sec-1-7"></a>
+
+    (defn saveImageMatrix [imgMatrix imtype filename]
+      (let [
+            h (row-count imgMatrix)
+            w (column-count imgMatrix)
+            bufImg (BufferedImage. w h BufferedImage/TYPE_INT_ARGB)
+            ]
+
+        (dotimes [y h]
+          (dotimes [x w]
+            (.setRGB bufImg x y (cl/get imgMatrix y x))
+            )
+          )
+        (ImageIO/write ^BufferedImage bufImg imtype  (File. filename))
+        )
+      )
+
+## Test code<a id="sec-1-8" name="sec-1-8"></a>
+
+### Links to helpful places<a id="sec-1-8-1" name="sec-1-8-1"></a>
 
 -   [Java BufferedImage class docs](http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html)
 -   [Getting RGB value of buffeeredImage](http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage)
@@ -118,42 +214,6 @@ The main test program
     (defn -main
     [& args]
 
-    ;; load an image a java bufferedImage
-    (def img  (ImageIO/read (FileInputStream. (File. "c:/data/circ.png"))))
-    (def w (.getWidth img))
-    (def h (.getHeight img))
-
-    ;; convert the buffered image into an int array
-    (def imgIntArray (.getRGB img 0 0 w h nil 0, w ))
-
-    ;; create a core.matrix with just the blue channel
-    (def imgMatrix (colorMatrix imgIntArray 8 w h ))
-
-    ;; create a core.matrix with all RGBA
-    (def imgMatrix (imageMatrix imgIntArray w h))
-
-    ;; convert it back to an int Array
-    (def newImage  (mx/eseq imgMatrix))
-
-    ;; It is returned as a lazy seq
-    (type newImage)
-
-    ;; make it an int array
-    (def newImgIntArray (int-array (doall newImage)))
-
-    ;; create a buffered image
-    (def bufImg  (BufferedImage. w h BufferedImage/TYPE_INT_ARGB))
-
-    ;; write the pixel data to it
-    (.setRGB bufImg 0 0 w h newImgIntArray 0 w)
-
-    ;; save it to disk
-    (ImageIO/write bufImg "png" (File. "c:/data/newcirc.png"))
-
-    ;; (def b (into [] a))
 
 
-    (def newImage ( mx/coerce  :double-array ((mx/reshape (colorMatrix a 16 (.getWidth img) (.getHeight img)) [1 (* (.getHeight img) (.getWidth img) )]) 0)))
-
-    (.setRGB img 0 0 (int-array newImage 0))
     )
