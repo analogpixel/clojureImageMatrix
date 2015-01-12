@@ -16,9 +16,10 @@
 <li><a href="#sec-1-4">1.4. Saving a matrix into an image</a></li>
 <li><a href="#sec-1-5">1.5. 32bit RGBA values</a></li>
 <li><a href="#sec-1-6">1.6. Reducing the intensity levels of your image</a></li>
-<li><a href="#sec-1-7">1.7. Test code</a>
+<li><a href="#sec-1-7">1.7. Converting to black and white</a></li>
+<li><a href="#sec-1-8">1.8. Test code</a>
 <ul>
-<li><a href="#sec-1-7-1">1.7.1. Links to helpful places</a></li>
+<li><a href="#sec-1-8-1">1.8.1. Links to helpful places</a></li>
 </ul>
 </li>
 </ul>
@@ -50,7 +51,7 @@ you requested, and all their dependencies.
       :main image.core
       :dependencies [[org.clojure/clojure "1.6.0"]
                      [net.mikera/core.matrix "0.32.1"]
-                     [clatrix "0.4.0"]
+                     [net.mikera/vectorz-clj "0.28.0"]
                      ])
 
  If you are using emacs, and have [CIDER](https://github.com/clojure-emacs/cider) installed (`M-x package-install` cider)
@@ -84,8 +85,9 @@ placing () around it will actually break it and won't load it into the namespace
 like you'd want.
 
     (ns image.core
-      (:use clojure.core.matrix)
-      (:require [clatrix.core :as cl])
+      (:use clojure.core.matrix clojure.core.matrix.operators)
+      (:require [clojure.core.matrix :refer :all]
+                [clojure.core.matrix.operators :as mo])
       (:import (java.io File FileInputStream) javax.imageio.ImageIO java.awt.image.BufferedImage)
     )
 
@@ -98,17 +100,17 @@ a long array [2 2 2 2 2 2 2 2 2 2] and converts it into [ [2 2] [2 2] [2 2]&#x20
     (defn makeMatrix [min mout w]
       (if (<= (count min) 0)
         mout
-        (makeMatrix (drop w min) (conj mout (into [] (take w min))) w)
+        (makeMatrix (drop w min) (conj mout (take w min)) w)
         )
       )
 
     (defn loadImageMatrix [filename]
-      (set! *warn-on-reflection* true)
+
       (def img  (ImageIO/read (FileInputStream. (File. filename))))
       (def w  (.getWidth img))
       (def h (.getHeight img))
 
-      (cl/matrix (makeMatrix (.getRGB ^BufferedImage img 0 0 w h nil 0, w ) [] w))
+      (makeMatrix (.getRGB ^BufferedImage img 0 0 w h nil 0, w ) (vec []) w)
       )
 
 ## Saving a matrix into an image<a id="sec-1-4" name="sec-1-4"></a>
@@ -124,7 +126,7 @@ This function saves a matrix back into an image
 
         (dotimes [y h]
           (dotimes [x w]
-            (.setRGB bufImg x y (cl/get imgMatrix y x))
+            (.setRGB bufImg x y (mget imgMatrix y x))
             )
           )
         (ImageIO/write ^BufferedImage bufImg imtype  (File. filename))
@@ -152,7 +154,9 @@ and then do a binary and of 000000000000000011111111 to remove the A and R value
 to get the Blue value B from a 32bit binary value, you would shift off nothing, and
 then do a binary and of 00000000000000000000000011111111 to get just the blue value
 
-    (defn unpackrgba [rgba]
+^long in the decleration tells clojure that rgba is a long and not a double
+
+    (defn unpackrgba [^long rgba]
       (let [r (bit-and (bit-shift-right rgba 16) 0xFF)
             g (bit-and (bit-shift-right rgba 8) 0xFF)
             b (bit-and (bit-shift-right rgba 0) 0xFF)
@@ -175,9 +179,11 @@ and get: "111010100010001100111111011100".  Now if you wanted to shift some valu
 
 to get: "11101010001000" which is the above number with the 16 right most bits removed.
 
-To get RGBA values back into a single 32bit number
+To get RGBA values back into a single 32bit number.  I'm using unchecked-int since bufferedImage
+is expecting to get an int back, and just int isn't big enough.
 
     (defn packrgba [r g b a]
+      (unchecked-int
       (bit-or
       (bit-shift-left r 16)
       (bit-shift-left g 8)
@@ -185,11 +191,13 @@ To get RGBA values back into a single 32bit number
       (bit-shift-left a 24)
       )
       )
+      )
 
 ## Reducing the intensity levels of your image<a id="sec-1-6" name="sec-1-6"></a>
 
     (defn reduceColor [^long rgba n]
-      (let    [c (unpackrgba rgba)
+      (let    [n (int (/ 255 n))
+               c (unpackrgba rgba)
                rr (* (int (/ (c 0) n)) n)
                rg (* (int (/ (c 1) n)) n)
                rb (* (int (/ (c 2) n)) n)
@@ -198,9 +206,21 @@ To get RGBA values back into a single 32bit number
         )
       )
 
-## Test code<a id="sec-1-7" name="sec-1-7"></a>
+## Converting to black and white<a id="sec-1-7" name="sec-1-7"></a>
 
-### Links to helpful places<a id="sec-1-7-1" name="sec-1-7-1"></a>
+    (defn bw [rgba n]
+      (let    [c (unpackrgba rgba)
+               rr (* (int (/ (c 0) n)) n)
+               rg (* (int (/ (c 1) n)) n)
+               rb (* (int (/ (c 2) n)) n)
+              ]
+        (packrgba rr rr rr (c 3))
+        )
+      )
+
+## Test code<a id="sec-1-8" name="sec-1-8"></a>
+
+### Links to helpful places<a id="sec-1-8-1" name="sec-1-8-1"></a>
 
 -   [Java BufferedImage class docs](http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html)
 -   [Getting RGB value of buffeeredImage](http://stackoverflow.com/questions/10880083/get-rgb-of-a-bufferedimage)
@@ -211,7 +231,12 @@ The main test program
 
     (defn -main
     [& args]
+      (set-current-implementation :vectorz)
+      (set! *warn-on-reflection* true)
 
+      (def m (loadImageMatrix "c:/data/1.png"))
+      (def n (loadImageMatrix "c:/data/2.png"))
 
-
+      (saveImageMatrix (mo/- m n) "png" "c:/data/yay.png")
+      (saveImageMatrix (emap #(bw % 23) (mo/- m n)) "png" "c:/data/yay.png")
     )
