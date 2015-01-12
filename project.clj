@@ -7,5 +7,5 @@
   :main image.core
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [net.mikera/core.matrix "0.32.1"]
-                 [clatrix "0.4.0"]
+                 [net.mikera/vectorz-clj "0.28.0"]
                  ])
