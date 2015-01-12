@@ -1,3 +1,8 @@
+#+BEGIN_MD
+layout: post
+title: Image Matrix
+#+END_MD
+
 * Image Manipulation with clojure
 
 ** Configure the project
