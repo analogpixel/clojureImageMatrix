@@ -81,8 +81,36 @@
     )
   )
 
+
+;; if setting this is valid then set it and return it
+;; if it is out of bounds just return the unchanged matrix
+(defn validmset [m r c v]
+  (if (and (>= r 0)
+           (>= c 0)
+           (< r (row-count m) )
+           (< c (column-count m) ))
+    (mset m r c v)
+    m
+    )
+
+  )
+
+;; given a row and col give all he neighbors defined in n
+(defn getNeigh [m r c n]
+
+   (if (> (count n) 0)
+     (validmset (getNeigh m r c (rest n)) (+ r ((first n) 0)) (+ c ((first n) 1)) 1)
+     (repeat (row-count m) (repeat (column-count m) 0 ))
+     )
+)
+
+;; row col
+;; y   x
+(def neighFour [[-1 0] [0 -1] [0 1] [1 0]])
+(def neighEight [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
+
 (defn -main
-[& args]
+  [& args]
   (set-current-implementation :vectorz)
   (set! *warn-on-reflection* true)
 
@@ -91,4 +119,4 @@
 
   (saveImageMatrix (mo/- m n) "png" "c:/data/yay.png")
   (saveImageMatrix (emap #(bw % 23) (mo/- m n)) "png" "c:/data/yay.png")
-)
+  )

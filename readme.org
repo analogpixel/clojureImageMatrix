@@ -194,6 +194,43 @@ is expecting to get an int back, and just int isn't big enough.
   )
 #+end_src
 
+** Getting a neigbor matrix
+For operations that require you to know your neighbors, wouldn't
+it be nice to have a matrix that identified all your nieghbors:
+#+begin_src clojure :tangle src/image/core.clj
+;; given a row and col give all he neighbors defined in n
+(defn getNeigh [m r c n]
+
+   (if (> (count n) 0)
+     (validmset (getNeigh m r c (rest n)) (+ r ((first n) 0)) (+ c ((first n) 1)) 1)
+     (repeat (row-count m) (repeat (column-count m) 0 ))
+     )
+   )
+#+end_src
+By passing in a matrix, the row and column you want the
+neighbors from, and then the list of neighbors:
+#+begin_src clojure :tangle src/image/core.clj
+(def neighFour [[-1 0] [0 -1] [0 1] [1 0]])
+(def neighEight [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
+#+end_src
+getNeigh will return a matrix of the same size with all values set to 0
+except for the neighbors which are set to 1.  And since we could be looking for
+values outside of the matrix, a simple helper function to handle that:
+#+begin_src clojure :tangle src/image/core.clj
+;; if setting this is valid then set it and return it
+;; if it is out of bounds just return the unchanged matrix
+(defn validmset [m r c v]
+  (if (and (>= r 0)
+           (>= c 0)
+           (< r (row-count m) )
+           (< c (column-count m) ))
+    (mset m r c v)
+    m
+    )
+
+  )
+#+end_src
+
 ** Test code
 *** Links to helpful places
 	-	[[http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html][Java BufferedImage class docs]]
