@@ -100,14 +100,32 @@
 
    (if (> (count n) 0)
      (validmset (getNeigh m r c (rest n)) (+ r ((first n) 0)) (+ c ((first n) 1)) 1)
-     (repeat (row-count m) (repeat (column-count m) 0 ))
+     ;;(repeat (row-count m) (repeat (column-count m) 0 ))
+     (zero-matrix (row-count m) (column-count m))
      )
 )
+
+(defn constrain [v min max]
+  (cond (< v min) min
+        (> v max) max
+        :else v
+        )
+  )
+
+;; https://processing.org/examples/convolution.html
+(def blur [m]
+  (/ (reduce + (map #(reduce + (subvec  (get-row m %) 1 3)) [0 1 2] )) 3)
+  )
 
 ;; row col
 ;; y   x
 (def neighFour [[-1 0] [0 -1] [0 1] [1 0]])
 (def neighEight [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
+
+;; kernels
+;; http://docs.gimp.org/en/plug-in-convmatrix.html
+(def edgeDetect [[-1 -1 0] [-1 0 -1 ] [-1 1 0] [0 -1 0] [0 0 1] [0 1 0] [1 -1 0] [1 0 0] [1 1 0]])
+
 
 (defn -main
   [& args]
